@@ -4,7 +4,12 @@ from gamedata import GameData
 
 
 def isInside(sprite, mouse_x, mouse_y) -> bool:
-    pass
+    bounds = sprite.getWorldBounds()
+
+    if bounds.v1.x < mouse_x < bounds.v2.x and bounds.v1.y < mouse_y < bounds.v3.y:
+        return True
+
+    return False
 
 
 class MyASGEGame(pyasge.ASGEGame):
@@ -20,7 +25,7 @@ class MyASGEGame(pyasge.ASGEGame):
             settings (pyasge.GameSettings): The game settings
         """
         pyasge.ASGEGame.__init__(self, settings)
-        self.renderer.setClearColour(pyasge.COLOURS.CORNFLOWER)
+        self.renderer.setClearColour(pyasge.COLOURS.BURLYWOOD)
 
         # create a game data object, we can store all shared game content here
         self.data = GameData()
@@ -55,25 +60,87 @@ class MyASGEGame(pyasge.ASGEGame):
         self.initFish()
 
     def initBackground(self) -> bool:
-        pass
+        if self.data.background.loadTexture("/data/images/background.png"):
+            self.data.background.z_order = -100
+            return True
+        else:
+            return False
 
     def initFish(self) -> bool:
-        pass
+        if self.fish.loadTexture("/data/images/kenney_fishpack/fishTile_073.png"):
+            self.fish.z_order = 1
+            self.fish.scale = 1
+            self.spawn()
+
+            return True
+
+        return False
 
     def initScoreboard(self) -> None:
-        pass
+        self.scoreboard = pyasge.Text(self.data.fonts["MainFont"])
+        self.scoreboard.x = 1300
+        self.scoreboard.y = 75
+        self.scoreboard.string = str(self.data.score).zfill(6)
 
     def initMenu(self) -> bool:
-        pass
+        self.data.fonts["MainFont"] = self.data.renderer.loadFont("/data/fonts/KGHAPPY.ttf", 64)
+        self.menu_text = pyasge.Text(self.data.fonts["MainFont"])
+        self.menu_text.string = "The Fish Game"
+        self.menu_text.position = [100, 100]
+        self.menu_text.colour = pyasge.COLOURS.HOTPINK
+
+        self.play_option = pyasge.Text(self.data.fonts["MainFont"])
+        self.play_option.string = ">START"
+        self.play_option.position = [100, 400]
+        self.play_option.colour = pyasge.COLOURS.HOTPINK
+
+        self.exit_option = pyasge.Text(self.data.fonts["MainFont"])
+        self.exit_option.string = " EXIT"
+        self.exit_option.position = [500, 400]
+        self.exit_option.colour = pyasge.COLOURS.LIGHTSLATEGRAY
+
+        return True
 
     def clickHandler(self, event: pyasge.ClickEvent) -> None:
-        pass
+        if event.action == pyasge.MOUSE.BUTTON_PRESSED and \
+                event.button == pyasge.MOUSE.MOUSE_BTN1:
+
+            if isInside(self.fish, event.x, event.y):
+                self.data.score += 1
+                self.scoreboard.string = str(self.data.score).zfill(6)
+                self.spawn()
 
     def keyHandler(self, event: pyasge.KeyEvent) -> None:
-        pass
+        if event.action == pyasge.KEYS.KEY_PRESSED:
+
+            if event.key == pyasge.KEYS.KEY_RIGHT or event.key == pyasge.KEYS.KEY_LEFT:
+                self.menu_option = 1 - self.menu_option
+                if self.menu_option == 0:
+                    self.play_option.string = ">START"
+                    self.play_option.colour = pyasge.COLOURS.HOTPINK
+                    self.exit_option.string = " EXIT"
+                    self.exit_option.colour = pyasge.COLOURS.LIGHTSLATEGRAY
+                else:
+                    self.play_option.string = " START"
+                    self.play_option.colour = pyasge.COLOURS.LIGHTSLATEGRAY
+                    self.exit_option.string = ">EXIT"
+                    self.exit_option.colour = pyasge.COLOURS.HOTPINK
+
+            if event.key == pyasge.KEYS.KEY_ENTER:
+                if self.menu_option == 0:
+                    self.menu = False
+                else:
+                    self.signalExit()
+
+            if event.key == pyasge.KEYS.KEY_ESCAPE:
+                self.signalExit()
+
+            if event.key == pyasge.KEYS.KEY_S:
+                self.spawn()
 
     def spawn(self) -> None:
-        pass
+        self.fish.x = random.randint(0, self.data.game_res[0] - self.fish.width)
+        self.fish.y = random.randint(0, self.data.game_res[1] - self.fish.height)
 
     def update(self, game_time: pyasge.GameTime) -> None:
 
@@ -83,21 +150,25 @@ class MyASGEGame(pyasge.ASGEGame):
         else:
             # update the game here
             pass
-
-    def render(self, game_time: pyasge.GameTime) -> None:
-        """
+    """
         This is the variable time-step function. Use to update
         animations and to render the gam    e-world. The use of
         ``frame_time`` is essential to ensure consistent performance.
         @param game_time: The tick and frame deltas.
         """
+    def render(self, game_time: pyasge.GameTime) -> None:
 
         if self.menu:
             # render the menu here
-            pass
+            self.data.renderer.render(self.data.background)
+            self.data.renderer.render(self.menu_text)
+
+            self.data.renderer.render(self.play_option)
+            self.data.renderer.render(self.exit_option)
         else:
             # render the game here
-            pass
+            self.data.renderer.render(self.scoreboard)
+            self.data.renderer.render(self.fish)
 
 
 def main():
