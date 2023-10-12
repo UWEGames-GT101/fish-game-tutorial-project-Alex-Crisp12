@@ -56,9 +56,10 @@ class MyASGEGame(pyasge.ASGEGame):
         self.initScoreboard()
 
         # This is a comment
-        self.fish = [pyasge.Sprite()]
-        self.initFish(0)
-        self.fishCounter = 2
+        self.fish = [pyasge.Sprite() for _ in range(10)]
+        for i in range(10):
+            self.initFish(i)
+        self.fishCounter = 10
 
     def initBackground(self) -> bool:
         if self.data.background.loadTexture("/data/images/background.png"):
@@ -109,11 +110,20 @@ class MyASGEGame(pyasge.ASGEGame):
                 if isInside(self.fish[i], event.x, event.y):
                     self.data.score += 1
                     self.scoreboard.string = str(self.data.score).zfill(6)
-                    self.spawn(i)
-                    if self.data.score == (self.fishCounter ** 2):
+
+                    if self.data.score == self.fishCounter:
+                        """
                         self.fish.append(pyasge.Sprite())
                         self.initFish(-1)
-                        self.fishCounter += 1
+                        """
+                        self.fish.pop(i)
+                        self.fishCounter = self.data.score + (100 // self.data.score)
+
+                        if not self.fish:
+                            self.signalExit()
+
+                    else:
+                        self.spawn(i)
 
                     return True
 
