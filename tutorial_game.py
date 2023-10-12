@@ -56,26 +56,25 @@ class MyASGEGame(pyasge.ASGEGame):
         self.initScoreboard()
 
         # This is a comment
-        self.fish = [pyasge.Sprite() for _ in range(5)]
-        self.initFish()
+        self.fish = [pyasge.Sprite()]
+        self.initFish(0)
+        self.fishCounter = 2
 
     def initBackground(self) -> bool:
         if self.data.background.loadTexture("/data/images/background.png"):
             self.data.background.z_order = -100
             return True
-        else:
-            return False
+        return False
 
-    def initFish(self) -> bool:
-        for fish_index, fish in enumerate(self.fish):
-            if fish.loadTexture("/data/images/kenney_fishpack/fishTile_073.png"):
-                fish.z_order = 1
-                fish.scale = 1
-                self.spawn(fish_index)
+    def initFish(self, fish_index) -> bool:
+        if self.fish[fish_index].loadTexture("/data/images/kenney_fishpack/fishTile_073.png"):
+            self.fish[fish_index].z_order = 1
+            self.fish[fish_index].scale = 1
+            self.spawn(fish_index)
 
-            else:
-                return False
-        return True
+            return True
+
+        return False
 
     def initScoreboard(self) -> None:
         self.scoreboard = pyasge.Text(self.data.fonts["MainFont"])
@@ -111,6 +110,11 @@ class MyASGEGame(pyasge.ASGEGame):
                     self.data.score += 1
                     self.scoreboard.string = str(self.data.score).zfill(6)
                     self.spawn(i)
+                    if self.data.score == (self.fishCounter ** 2):
+                        self.fish.append(pyasge.Sprite())
+                        self.initFish(-1)
+                        self.fishCounter += 1
+
                     return True
 
         return False
@@ -141,7 +145,7 @@ class MyASGEGame(pyasge.ASGEGame):
                 self.signalExit()
 
             if event.key == pyasge.KEYS.KEY_S:
-                self.spawn()
+                self.spawn(random.randint(0, len(self.fish) - 1))
 
     def spawn(self, fish_index) -> None:
         self.fish[fish_index].x = random.randint(0, self.data.game_res[0] - self.fish[fish_index].width)
