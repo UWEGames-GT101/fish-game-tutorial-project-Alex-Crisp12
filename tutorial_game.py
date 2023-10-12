@@ -56,7 +56,7 @@ class MyASGEGame(pyasge.ASGEGame):
         self.initScoreboard()
 
         # This is a comment
-        self.fish = pyasge.Sprite()
+        self.fish = [pyasge.Sprite() for _ in range(5)]
         self.initFish()
 
     def initBackground(self) -> bool:
@@ -67,14 +67,15 @@ class MyASGEGame(pyasge.ASGEGame):
             return False
 
     def initFish(self) -> bool:
-        if self.fish.loadTexture("/data/images/kenney_fishpack/fishTile_073.png"):
-            self.fish.z_order = 1
-            self.fish.scale = 1
-            self.spawn()
+        for fish_index, fish in enumerate(self.fish):
+            if fish.loadTexture("/data/images/kenney_fishpack/fishTile_073.png"):
+                fish.z_order = 1
+                fish.scale = 1
+                self.spawn(fish_index)
 
-            return True
-
-        return False
+            else:
+                return False
+        return True
 
     def initScoreboard(self) -> None:
         self.scoreboard = pyasge.Text(self.data.fonts["MainFont"])
@@ -101,14 +102,18 @@ class MyASGEGame(pyasge.ASGEGame):
 
         return True
 
-    def clickHandler(self, event: pyasge.ClickEvent) -> None:
+    def clickHandler(self, event: pyasge.ClickEvent) -> bool:
         if event.action == pyasge.MOUSE.BUTTON_PRESSED and \
                 event.button == pyasge.MOUSE.MOUSE_BTN1:
 
-            if isInside(self.fish, event.x, event.y):
-                self.data.score += 1
-                self.scoreboard.string = str(self.data.score).zfill(6)
-                self.spawn()
+            for i in range(len(self.fish)):
+                if isInside(self.fish[i], event.x, event.y):
+                    self.data.score += 1
+                    self.scoreboard.string = str(self.data.score).zfill(6)
+                    self.spawn(i)
+                    return True
+
+        return False
 
     def keyHandler(self, event: pyasge.KeyEvent) -> None:
         if event.action == pyasge.KEYS.KEY_PRESSED:
@@ -138,9 +143,9 @@ class MyASGEGame(pyasge.ASGEGame):
             if event.key == pyasge.KEYS.KEY_S:
                 self.spawn()
 
-    def spawn(self) -> None:
-        self.fish.x = random.randint(0, self.data.game_res[0] - self.fish.width)
-        self.fish.y = random.randint(0, self.data.game_res[1] - self.fish.height)
+    def spawn(self, fish_index) -> None:
+        self.fish[fish_index].x = random.randint(0, self.data.game_res[0] - self.fish[fish_index].width)
+        self.fish[fish_index].y = random.randint(0, self.data.game_res[1] - self.fish[fish_index].height)
 
     def update(self, game_time: pyasge.GameTime) -> None:
 
@@ -168,7 +173,8 @@ class MyASGEGame(pyasge.ASGEGame):
         else:
             # render the game here
             self.data.renderer.render(self.scoreboard)
-            self.data.renderer.render(self.fish)
+            for fish in self.fish:
+                self.data.renderer.render(fish)
 
 
 def main():
