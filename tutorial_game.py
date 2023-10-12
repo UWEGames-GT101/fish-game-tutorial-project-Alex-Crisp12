@@ -56,10 +56,9 @@ class MyASGEGame(pyasge.ASGEGame):
         self.initScoreboard()
 
         # This is a comment
-        self.fish = [pyasge.Sprite() for _ in range(10)]
-        for i in range(10):
-            self.initFish(i)
-        self.fishCounter = 10
+        self.fish = []
+        self.timePassed = 0
+        self.fishSpawnCounter = 60
 
     def initBackground(self) -> bool:
         if self.data.background.loadTexture("/data/images/background.png"):
@@ -108,24 +107,14 @@ class MyASGEGame(pyasge.ASGEGame):
 
             for i in range(len(self.fish)):
                 if isInside(self.fish[i], event.x, event.y):
-                    self.data.score += 1
-                    self.scoreboard.string = str(self.data.score).zfill(6)
+                    self.fish.pop(i)
 
-                    if self.data.score == self.fishCounter:
-                        """
-                        self.fish.append(pyasge.Sprite())
-                        self.initFish(-1)
-                        """
-                        self.fish.pop(i)
-                        self.fishCounter = self.data.score + (100 // self.data.score)
-
-                        if not self.fish:
-                            self.signalExit()
-
-                    else:
-                        self.spawn(i)
+                    if not self.fish:
+                        self.menu = True
 
                     return True
+
+            self.timePassed += 10
 
         return False
 
@@ -147,12 +136,17 @@ class MyASGEGame(pyasge.ASGEGame):
 
             if event.key == pyasge.KEYS.KEY_ENTER:
                 if self.menu_option == 0:
+                    self.startGame()
                     self.menu = False
                 else:
                     self.signalExit()
 
             if event.key == pyasge.KEYS.KEY_ESCAPE:
-                self.signalExit()
+                if self.menu:
+                    self.signalExit()
+                else:
+                    self.menu = True
+                    self.data.score = 0
 
             if event.key == pyasge.KEYS.KEY_S:
                 self.spawn(random.randint(0, len(self.fish) - 1))
@@ -161,14 +155,36 @@ class MyASGEGame(pyasge.ASGEGame):
         self.fish[fish_index].x = random.randint(0, self.data.game_res[0] - self.fish[fish_index].width)
         self.fish[fish_index].y = random.randint(0, self.data.game_res[1] - self.fish[fish_index].height)
 
-    def update(self, game_time: pyasge.GameTime) -> None:
+    def trackTimePassage(self) -> None:
+        self.timePassed += 1
+        self.fishSpawnCounter -= 1
+        if self.timePassed % 60 == 0:
+            self.data.score += 1
+            self.scoreboard.string = str(self.data.score).zfill(6)
 
+        if self.fishSpawnCounter == 0:
+            self.fish.append(pyasge.Sprite())
+            self.initFish(-1)
+            self.fishSpawnCounter = (20 * len(self.fish)) - self.data.score
+
+    def startGame(self) -> None:
+        # This is a comment
+        self.fish = [pyasge.Sprite() for _ in range(10)]
+        for i in range(10):
+            self.initFish(i)
+        self.timePassed = 0
+        self.scoreboard.string = "000000"
+        self.data.score = 0
+        self.fishSpawnCounter = 60
+
+    def update(self, game_time: pyasge.GameTime) -> None:
         if self.menu:
             # update the menu here
             pass
         else:
+            self.trackTimePassage()
             # update the game here
-            pass
+
     """
         This is the variable time-step function. Use to update
         animations and to render the gam    e-world. The use of
@@ -176,14 +192,17 @@ class MyASGEGame(pyasge.ASGEGame):
         @param game_time: The tick and frame deltas.
         """
     def render(self, game_time: pyasge.GameTime) -> None:
+        self.data.renderer.render(self.data.background)
 
         if self.menu:
             # render the menu here
-            self.data.renderer.render(self.data.background)
             self.data.renderer.render(self.menu_text)
 
             self.data.renderer.render(self.play_option)
             self.data.renderer.render(self.exit_option)
+
+            if self.data.score != 0:
+                self.data.renderer.render(self.scoreboard)
         else:
             # render the game here
             self.data.renderer.render(self.scoreboard)
