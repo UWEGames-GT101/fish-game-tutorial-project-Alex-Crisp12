@@ -1,15 +1,58 @@
 import random
 import pyasge
+from coordinate import Coord
 from gamedata import GameData
 
 
 def isInside(sprite, mouse_x, mouse_y) -> bool:
     bounds = sprite.getWorldBounds()
 
-    if bounds.v1.x < mouse_x < bounds.v2.x and bounds.v1.y < mouse_y < bounds.v3.y:
+    if bounds.v1.x < mouse_x < bounds.v2.x and bounds.v1.y < mouse_y < bounds.v2.y:
         return True
 
     return False
+
+
+def f(x):
+    while x > 180:
+        x -= 360
+    while x < -180:
+        x += 360
+    x = (x / 180) * 3.1414794921875
+    k = x
+    c = 2
+    for i in range(1, 3):
+        c = c * (2 * i + 1)
+        k += ((-1) ** i) * (x ** (2 * i + 1)) / c
+        c = c * (2 * (i + 1))
+    return k
+
+
+def sin(x):
+    x = (x - 180) % 360 - 180
+    if -180 <= x < -90:
+        return -f(x + 180)
+    elif -90 <= x < 0:
+        return -f(-x)
+    elif 0 <= x < 90:
+        return f(x)
+    else:
+        return f(180 - x)
+
+
+def cos(x):
+    return sin(90 - x)
+
+
+class Fish(pyasge.Sprite):
+    def __init__(self):
+        pyasge.Sprite.__init__(self)
+        self.velocity = Coord(0, 0)
+
+    #  Remove this Class
+    def updatePosition(self) -> None:
+        self.x += self.velocity.x
+        self.y += self.velocity.y
 
 
 class MyASGEGame(pyasge.ASGEGame):
@@ -59,6 +102,7 @@ class MyASGEGame(pyasge.ASGEGame):
         self.fish = []
         self.timePassed = 0
         self.fishSpawnCounter = 60
+        self.fishNet = (self.data.game_res[0] - 128, self.data.game_res[1] - 128)
 
     def initBackground(self) -> bool:
         if self.data.background.loadTexture("/data/images/background.png"):
@@ -90,12 +134,12 @@ class MyASGEGame(pyasge.ASGEGame):
         self.menu_text.colour = pyasge.COLOURS.HOTPINK
 
         self.play_option = pyasge.Text(self.data.fonts["MainFont"])
-        self.play_option.string = ">START"
+        self.play_option.string = "START<"
         self.play_option.position = [100, 400]
         self.play_option.colour = pyasge.COLOURS.HOTPINK
 
         self.exit_option = pyasge.Text(self.data.fonts["MainFont"])
-        self.exit_option.string = " EXIT"
+        self.exit_option.string = "EXIT "
         self.exit_option.position = [500, 400]
         self.exit_option.colour = pyasge.COLOURS.LIGHTSLATEGRAY
 
@@ -124,14 +168,14 @@ class MyASGEGame(pyasge.ASGEGame):
             if event.key == pyasge.KEYS.KEY_RIGHT or event.key == pyasge.KEYS.KEY_LEFT:
                 self.menu_option = 1 - self.menu_option
                 if self.menu_option == 0:
-                    self.play_option.string = ">START"
+                    self.play_option.string = "START<"
                     self.play_option.colour = pyasge.COLOURS.HOTPINK
-                    self.exit_option.string = " EXIT"
+                    self.exit_option.string = "EXIT "
                     self.exit_option.colour = pyasge.COLOURS.LIGHTSLATEGRAY
                 else:
-                    self.play_option.string = " START"
+                    self.play_option.string = "START "
                     self.play_option.colour = pyasge.COLOURS.LIGHTSLATEGRAY
-                    self.exit_option.string = ">EXIT"
+                    self.exit_option.string = "EXIT<"
                     self.exit_option.colour = pyasge.COLOURS.HOTPINK
 
             if event.key == pyasge.KEYS.KEY_ENTER:
@@ -154,6 +198,13 @@ class MyASGEGame(pyasge.ASGEGame):
     def spawn(self, fish_index) -> None:
         self.fish[fish_index].x = random.randint(0, self.data.game_res[0] - self.fish[fish_index].width)
         self.fish[fish_index].y = random.randint(0, self.data.game_res[1] - self.fish[fish_index].height)
+        magnitude = random.randint(0, 50) / 10
+        direction = random.randint(0, 359)
+
+        self.fish[fish_index].velocity.set(
+            magnitude * cos(direction),
+            magnitude * sin(direction)
+        )
 
     def trackTimePassage(self) -> None:
         self.timePassed += 1
@@ -163,13 +214,56 @@ class MyASGEGame(pyasge.ASGEGame):
             self.scoreboard.string = str(self.data.score).zfill(6)
 
         if self.fishSpawnCounter == 0:
-            self.fish.append(pyasge.Sprite())
+            self.fish.append(Fish())
             self.initFish(-1)
             self.fishSpawnCounter = (20 * len(self.fish)) - self.data.score
 
+    def updateFishCollisions(self) -> None:
+        for a in self.fish:
+            #  collisions with each other
+            for b in self.fish:
+                if a == b:
+                    continue
+
+                vector = Coord(
+                    b.x - a.x,
+                    b.y - a.y
+                )
+
+                if abs(vector.x) <= a.width and abs(vector.y) <= a.height:
+                    Ua = a.velocity.i("/", vector)
+                    Ub = b.velocity.i("/", vector)
+                    Va = Coord((Ub.x + 9 * Ua.x) / 10, Ua.y)
+                    Vb = Coord((Ub.x * 9 + Ua.x) / 10, Ub.y)
+
+                    a.velocity = Va.i("*", vector)
+                    b.velocity = Vb.i("*", vector)
+
+                    a.updatePosition()
+                    b.updatePosition()
+
+                    while abs(vector.x) <= a.width and abs(vector.y) <= a.height:
+                        a.updatePosition()
+                        b.updatePosition()
+
+                        vector.set(
+                            b.x - a.x,
+                            b.y - a.y
+                        )
+
+            #  collisions with walls
+            if a.x < 0:
+                a.x += self.fishNet[0]
+            elif a.x > self.fishNet[0]:
+                a.x -= self.fishNet[0]
+            if a.y < 0:
+                a.y += self.fishNet[1]
+            elif a.y > self.fishNet[1]:
+                a.y -= self.fishNet[1]
+
     def startGame(self) -> None:
         # This is a comment
-        self.fish = [pyasge.Sprite() for _ in range(10)]
+        self.fish = [Fish() for _ in range(10)]
         for i in range(10):
             self.initFish(i)
         self.timePassed = 0
@@ -183,11 +277,13 @@ class MyASGEGame(pyasge.ASGEGame):
             pass
         else:
             self.trackTimePassage()
+            for fish in self.fish:
+                fish.updatePosition()
             # update the game here
 
     """
         This is the variable time-step function. Use to update
-        animations and to render the gam    e-world. The use of
+        animations and to render the game-world. The use of
         ``frame_time`` is essential to ensure consistent performance.
         @param game_time: The tick and frame deltas.
         """
