@@ -44,6 +44,7 @@ def cos(x):
     return sin(90 - x)
 
 
+"""
 class Fish(pyasge.Sprite):
     def __init__(self):
         pyasge.Sprite.__init__(self)
@@ -53,6 +54,7 @@ class Fish(pyasge.Sprite):
     def updatePosition(self) -> None:
         self.x += self.velocity.x
         self.y += self.velocity.y
+"""
 
 
 class MyASGEGame(pyasge.ASGEGame):
@@ -100,6 +102,7 @@ class MyASGEGame(pyasge.ASGEGame):
 
         # This is a comment
         self.fish = []
+        self.fishVelocity = []
         self.timePassed = 0
         self.fishSpawnCounter = 60
         self.fishNet = (self.data.game_res[0] - 128, self.data.game_res[1] - 128)
@@ -114,6 +117,7 @@ class MyASGEGame(pyasge.ASGEGame):
         if self.fish[fish_index].loadTexture("/data/images/kenney_fishpack/fishTile_073.png"):
             self.fish[fish_index].z_order = 1
             self.fish[fish_index].scale = 1
+            self.fishVelocity.append(Coord(0, 0))
             self.spawn(fish_index)
 
             return True
@@ -152,6 +156,7 @@ class MyASGEGame(pyasge.ASGEGame):
             for i in range(len(self.fish)):
                 if isInside(self.fish[i], event.x, event.y):
                     self.fish.pop(i)
+                    self.fishVelocity.pop(i)
 
                     if not self.fish:
                         self.menu = True
@@ -201,7 +206,7 @@ class MyASGEGame(pyasge.ASGEGame):
         magnitude = random.randint(0, 50) / 10
         direction = random.randint(0, 359)
 
-        self.fish[fish_index].velocity.set(
+        self.fishVelocity[fish_index].set(
             magnitude * cos(direction),
             magnitude * sin(direction)
         )
@@ -214,15 +219,19 @@ class MyASGEGame(pyasge.ASGEGame):
             self.scoreboard.string = str(self.data.score).zfill(6)
 
         if self.fishSpawnCounter == 0:
-            self.fish.append(Fish())
+            self.fish.append(pyasge.Sprite())
             self.initFish(-1)
-            self.fishSpawnCounter = (20 * len(self.fish)) - self.data.score
+            self.fishSpawnCounter = (20 * (len(self.fish) + 1)) - self.data.score // 2
+
+    def updateFishPosition(self, i: int) -> None:
+        self.fish[i].x += self.fishVelocity[i].x
+        self.fish[i].y += self.fishVelocity[i].y
 
     def updateFishCollisions(self) -> None:
-        for a in self.fish:
+        for ai, a in enumerate(self.fish):
             #  collisions with each other
-            for b in self.fish:
-                if a == b:
+            for bi, b in enumerate(self.fish):
+                if ai == bi:
                     continue
 
                 vector = Coord(
@@ -231,20 +240,20 @@ class MyASGEGame(pyasge.ASGEGame):
                 )
 
                 if abs(vector.x) <= a.width and abs(vector.y) <= a.height:
-                    Ua = a.velocity.i("/", vector)
-                    Ub = b.velocity.i("/", vector)
+                    Ua = self.fishVelocity[ai].i("/", vector)
+                    Ub = self.fishVelocity[bi].i("/", vector)
                     Va = Coord((Ub.x + 9 * Ua.x) / 10, Ua.y)
                     Vb = Coord((Ub.x * 9 + Ua.x) / 10, Ub.y)
 
-                    a.velocity = Va.i("*", vector)
-                    b.velocity = Vb.i("*", vector)
+                    self.fishVelocity[ai] = Va.i("*", vector)
+                    self.fishVelocity[bi] = Vb.i("*", vector)
 
-                    a.updatePosition()
-                    b.updatePosition()
+                    self.updateFishPosition(ai)
+                    self.updateFishPosition(bi)
 
                     while abs(vector.x) <= a.width and abs(vector.y) <= a.height:
-                        a.updatePosition()
-                        b.updatePosition()
+                        self.updateFishPosition(ai)
+                        self.updateFishPosition(bi)
 
                         vector.set(
                             b.x - a.x,
@@ -263,7 +272,7 @@ class MyASGEGame(pyasge.ASGEGame):
 
     def startGame(self) -> None:
         # This is a comment
-        self.fish = [Fish() for _ in range(10)]
+        self.fish = [pyasge.Sprite() for _ in range(10)]
         for i in range(10):
             self.initFish(i)
         self.timePassed = 0
@@ -277,8 +286,9 @@ class MyASGEGame(pyasge.ASGEGame):
             pass
         else:
             self.trackTimePassage()
-            for fish in self.fish:
-                fish.updatePosition()
+            for i in range(len(self.fish)):
+                self.updateFishPosition(i)
+            self.updateFishCollisions()
             # update the game here
 
     """
